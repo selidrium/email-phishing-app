@@ -51,24 +51,24 @@ email-phishing-app/
 ### Local Development
 
 1. **Clone the repository:**
-   ```bash
+```bash
 git clone <repository-url>
 cd email-phishing-app
 ```
 2. **Set up the backend:**
-   ```bash
+```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 3. **Set up the frontend:**
-   ```bash
+```bash
 cd ../frontend
 npm install
 ```
 4. **Create a `.env` file in the backend directory:**
-   ```
+```
 FLASK_APP=app.py
 FLASK_ENV=development
 JWT_SECRET_KEY=your_jwt_secret_key_here
@@ -83,7 +83,7 @@ ABUSEIPDB_API_KEY=your_abuseipdb_api_key_here
 
 1. **Create a `.env` file in the root or backend directory** (see above).
 2. **Build and run with Docker Compose:**
-   ```bash
+```bash
 docker-compose up --build
 ```
 
