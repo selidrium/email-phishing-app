@@ -1,0 +1,27 @@
+From: AppleID@security-notice.com
+To: testuser@example.com
+Subject: ⚠️ Your Apple ID Was Used to Sign In
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="APPLE_BOUNDARY"
+
+--APPLE_BOUNDARY
+Content-Type: text/plain; charset="UTF-8"
+
+Your Apple ID was used to sign in on a new device.
+If you do not recognize this activity, please verify your account immediately: http://appleid-verify-secure.com/login
+
+--APPLE_BOUNDARY
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+  <body style="font-family:Arial, sans-serif;">
+    <p style="font-size:18px;"><strong>Apple ID Alert</strong></p>
+    <p>Your Apple ID was used to sign in to iCloud from a new device.</p>
+    <p><strong>Device:</strong> iPhone 14 Pro<br>
+       <strong>Location:</strong> Chicago, IL, United States</p>
+    <p>If you did not initiate this activity, please <a href="http://appleid-verify-secure.com/login" style="color:#0071e3;">verify your account</a> immediately to protect your information.</p>
+    <p style="font-size:small;color:gray;">Apple Support</p>
+  </body>
+</html>
+
+--APPLE_BOUNDARY--

@@ -1,0 +1,27 @@
+From: security@chase-alerts.com
+To: testuser@example.com
+Subject: 🚨 Urgent: Unusual Activity Detected On Your Account
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="CHASE_BOUNDARY"
+
+--CHASE_BOUNDARY
+Content-Type: text/plain; charset="UTF-8"
+
+Unusual activity detected on your Chase account.
+Verify here: http://chase-secure-login.com/verify
+
+--CHASE_BOUNDARY
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+  <body>
+    <h2 style="color:red;">Important Security Notification</h2>
+    <p>Dear Customer,</p>
+    <p>We detected unusual login activity on your <strong>Chase</strong> account.</p>
+    <p>Please review your recent transactions immediately:</p>
+    <p><a href="http://chase-secure-login.com/verify" style="background-color:#0070C9;color:white;padding:10px 20px;text-decoration:none;">Verify Account</a></p>
+    <p style="font-size:small;color:gray;">Chase Security Department</p>
+  </body>
+</html>
+
+--CHASE_BOUNDARY--

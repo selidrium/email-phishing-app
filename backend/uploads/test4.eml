@@ -1,0 +1,56 @@
+Return-Path: <attacker@example.com>
+Delivered-To: victim@example.com
+Received: from mail.fakehost.com (mail.fakehost.com. [116.110.113.158])
+        by mx.example.com with ESMTPS id abc123
+        for <victim@example.com>;
+        Wed, 10 Jul 2024 12:34:56 -0700 (PDT)
+Received: from [10.0.0.1] (unknown [10.0.0.1])
+        by mail.fakehost.com (Postfix) with ESMTPSA id 12345
+        for <victim@example.com>; Wed, 10 Jul 2024 12:34:55 -0700 (PDT)
+X-Originating-IP: [196.251.83.136]
+Authentication-Results: mx.example.com;
+    spf=fail (example.com: domain of attacker@example.com does not designate 203.0.113.5 as permitted sender) smtp.mailfrom=attacker@example.com;
+    dkim=fail (bad signature) header.i=@example.com;
+    dmarc=fail (p=REJECT) header.from=example.com
+Received-SPF: fail (example.com: domain of attacker@example.com does not designate 203.0.113.5 as permitted sender) client-ip=203.0.113.5;
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=example.com; s=selector1; h=from:to:subject:date:message-id; bh=abc123; b=badDKIMsignature==
+MIME-Version: 1.0
+From: "Attacker" <attacker@example.com>
+To: "Victim" <victim@example.com>
+Date: Wed, 10 Jul 2024 12:34:56 -0700
+Subject: Urgent: Action Required! Click the link to verify your account
+Message-ID: <test123@example.com>
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset="UTF-8"
+
+Hello Victim,
+
+Please verify your account immediately by clicking the link below:
+http://malicious.example.com/verify?user=victim
+
+This is an urgent security notice.
+
+Best,
+Fake Security Team
+
+--boundary123
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+  <body>
+    <p>Hello Victim,</p>
+    <p><b>URGENT:</b> Please <a href="http://malicious.example.com/verify?user=victim">verify your account</a> immediately.</p>
+    <script>alert('This is a suspicious script!');</script>
+  </body>
+</html>
+
+--boundary123
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="invoice.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKJcfs...
+
+--boundary123--

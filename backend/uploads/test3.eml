@@ -1,0 +1,99 @@
+Delivered-To: alangarcia1996@gmail.com
+Received: by 2002:a17:907:1c1f:b0:ac6:e930:e40c with SMTP id nc31csp7427704ejc;
+        Tue, 8 Apr 2025 07:10:02 -0700 (PDT)
+X-Forwarded-Encrypted: i=2; AJvYcCWL4xgFNUzC9Gk5Dw3uYa/irOf/Fiv9LtGwsxEHj7A9++CDK5Z2czfs5s1CTlL5rCchiUuTQ9ilSmVdNgrv8w==@gmail.com
+X-Received: by 2002:a17:907:9815:b0:ac2:811a:665a with SMTP id a640c23a62f3a-ac7d19f6a8emr1730084466b.57.1744121402625;
+        Tue, 08 Apr 2025 07:10:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1744121402; cv=none;
+        d=google.com; s=arc-20240605;
+        b=EbajGBPdRlpMLZhw3PLIu2RpbPki6nuM+YZ9pKNeuTjgWkc3Je9IG4NFwPhC8Lv+Vd
+         kp32B8k0xlMwxJXtU+fiz9Q5PUyo/03PM9c2NUQeDIib/z831Yk5T+qhwTBHT1FjpquX
+         Qa0YrtyYo0bsMsoq0Keccx6PJGDtX6C/eKDs27jiETomqI/7dOS+B/BYvbT3Pq8zx4iI
+         lSwgrcGMsrTuJMlDZYi//6xCsvHDcZjspRNPXO82cosN6d/P6lVoIO/7MWCHbweWaAol
+         IFYpxgyZnKbZji/ZJTzOIuRhAxygSifwANeIvM6Vsm6CdVkbw24/SHNgZ69KiuJpjmUM
+         GZ9Q==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:subject:message-id:date:from:reply-to:mime-version
+         :dkim-signature;
+        bh=s4gNin4KkLf8XmDy0dsJp+BtiOYO3whZPv0P7C35/bo=;
+        fh=rEj3m8nVWb6isEAYayVSFrilfx/EO9CggcuQ3jJVHUc=;
+        b=dQLzfkX3mTaon8yp+YY9Bl1ADNxl+T5x8JhINTj9m+jjDd8FdXFonAVmvPzMR3oPFk
+         ynL0nKzoT7miYA6SyLsdxag8yiEKG9mTvrA4I1ZK8hVsMEN+zBwC8dVSi4VYWTg/i5HQ
+         0dBVuxxelngUFKtI3yQUA1m1TP4+/iq4SI3jQk9DrXLFm8f0/PTHagMHS7iLQ/CDJDLG
+         AwFlFdWVgxybXHV+thkCUrxR+E/qek8MgSzPRzw8qshGIQM6WtHoXzbY9hVGf1/tvl3L
+         o1dnQ3b3IAjZjweZNXr8N+DqxQqexMxrkaX624nNf0VRo+yX2PQGAAkBqt1i925hyff9
+         Jjiw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=TkjjWIYh;
+       spf=pass (google.com: domain of garfieldwilliam75@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=garfieldwilliam75@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=pass header.i=@gmail.com
+Return-Path: <garfieldwilliam75@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a640c23a62f3a-ac7bfff196dsor256723566b.2.2025.04.08.07.10.02
+        for <alangarcia1996@gmail.com>
+        (Google Transport Security);
+        Tue, 08 Apr 2025 07:10:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of garfieldwilliam75@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=TkjjWIYh;
+       spf=pass (google.com: domain of garfieldwilliam75@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=garfieldwilliam75@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=pass header.i=@gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20230601; t=1744121402; x=1744726202; dara=google.com;
+        h=to:subject:message-id:date:from:reply-to:mime-version:from:to:cc
+         :subject:date:message-id:reply-to;
+        bh=s4gNin4KkLf8XmDy0dsJp+BtiOYO3whZPv0P7C35/bo=;
+        b=TkjjWIYhc4lUywsVLbKBMFOZud+bTgDxLjYA4NTVuLIBwXIMlMnb9MyHEBzCxjfbzl
+         egTzr5XclCS4nPkHLLoJqMnFsYE3FSJkOsHlSSuP1TR4YpGYZ2xRJcBxqkJhsC+WciZX
+         vI3a1m55bRIx8q918EEkxuN+6o5jsyDxB6x3HGWAJ0+Dv9kkyoehpO5REkGuU4g2g53g
+         sEJ3zbsX0KC96BcGUglT5Zh8OiTJJkvtPaWtS1arD2B6kOwiFGIUZfSZ/DvzfjHSOjjb
+         8JVz2q0VMO08vr+EUgINHZ11DPrBB9uvZNbmVR6vjy6EHNXvL7kh45vn55LsN3/YYsk6
+         H4Dw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1744121402; x=1744726202;
+        h=to:subject:message-id:date:from:reply-to:mime-version
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=s4gNin4KkLf8XmDy0dsJp+BtiOYO3whZPv0P7C35/bo=;
+        b=acSVnJO+FSZWjxeN2OiaQ/NZes3e7Rl1tO7P3lvqJ4/2+g4GeCHL98rCXfoS7bFsp7
+         iqslXiprDrE7mJ5NqYE9Hf8gKPjgmyoTEPxKy9KEFohoDJkeN4lDXdyLBWrTFo/UN3ic
+         8xQNX76Y2IZ4dDSp5vJ28jY7wmLEmG4dCTnOUy7FERhVEi2nxpZqRTsoQ1WcCkUVoTlr
+         TM6mTrSqhlVFneBHgypwyb/RsP8/L8bY9ANY71Q3gSG0ZdrcnFUNQqC4y5DmZsIorGZc
+         XxGRQ0BzhBuivkDHiuiY6YhuwSdy1e5W+tO7EGorquZeWIT0sS2yFLA7Otah1VyNUnqu
+         /HpQ==
+X-Forwarded-Encrypted: i=1; AJvYcCXHrxvD8G33z+0GoaA8sNLeljwBtR+Vs6ZBkUQqJ+93BK4+ulAAhT0IJb6DDPOGanzWbMBs3PVBvhIWya6Y0Q==@gmail.com
+X-Gm-Message-State: AOJu0YwssVgqsgF6WHIq2YI5ktMofmubLxwSbEhvlPtXt50UNKjGcZ5U
+	S/Kul/VLEhgikxlv163EofT8Fnpc7rw345nxwuAC1WuxhW3G00WD5mObw3WFXjvZjNyGOPiw4Ra
+	4aCkRmUIQPY6CIgCAy4zR83MdNY4=
+X-Gm-Gg: ASbGnctAdNeXd2WSQ8zgvwIFT5P0JIiRvreL11mQScEny3J+005yLrUWnI3opjL89rT
+	K7RKG2d9O4p1DQPaAIjJZWYWIw+L54D7FSznCljHPjtGZ7PrWK3jm77qMX/553uCL/D/TV/CjUD
+	7vtLQZY7hn+opM4L7hy2Mvn86bIdx0pVvDwWX9xu51PoDLhtXxN//qczKlgxw=
+X-Google-Smtp-Source: AGHT+IEmXpKbE+4d8nBh90U5wUUzf0MWTjbA+r0dhCVEOilFYrux3GVRsVnfKviYkMJuCTmfKuQhNhZljLjr1TTJem0=
+X-Received: by 2002:a17:906:d7e0:b0:ac0:b71e:44e0 with SMTP id
+ a640c23a62f3a-ac7d191e463mr564281166b.9.1744121401667; Tue, 08 Apr 2025
+ 07:10:01 -0700 (PDT)
+MIME-Version: 1.0
+Reply-To: ccservicepmo@gmail.com
+From: Email Contact <garfieldwilliam75@gmail.com>
+Date: Tue, 8 Apr 2025 14:09:50 +0000
+X-Gm-Features: ATxdqUHvrOI0tj1LcvOYPbyx7Ek4JzgtizBzKQFDps75Z0eX4tP07e2svpVSj28
+Message-ID: <CAHDUi7s19pGBJ=VYxnHYYNgbMpsoAR3QzXWLvZBzhbffz6UMSA@mail.gmail.com>
+Subject: Re: Hello Dear, Please if this E-mail is still in use by you, then
+ you should respond immediately so that I can tell you about the good news
+To: William Garfield <garfieldwilliam75@gmail.com>
+Content-Type: multipart/alternative; boundary="000000000000977a9d063244e8cc"
+Bcc: alangarcia1996@gmail.com
+
+--000000000000977a9d063244e8cc
+Content-Type: text/plain; charset="UTF-8"
+
+
+
+--000000000000977a9d063244e8cc
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr"><br></div>
+
+--000000000000977a9d063244e8cc--

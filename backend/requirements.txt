@@ -1,0 +1,17 @@
+Flask==2.3.3
+Werkzeug==2.3.7
+flask-jwt-extended==4.6.0
+flask-cors==4.0.0
+python-dotenv==1.0.1
+email-validator==2.1.0.post1
+pyspf==2.0.14
+dkimpy==1.0.5
+dmarc==1.0.0
+beautifulsoup4==4.9.3
+python-magic==0.4.27
+langdetect==1.0.9
+requests==2.31.0
+python-whois==0.8.0
+reportlab==4.1.0
+pandas==2.2.1
+python-docx==1.1.0 
