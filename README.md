@@ -2,6 +2,8 @@
 
 A full-stack, modern application for detecting and analyzing potential phishing emails by uploading `.eml` files. Designed for security teams, IT admins, and researchers, it provides deep analysis, risk scoring, and actionable threat intelligence for every email and attachment.
 
+**Current Version**: v1.0.0 - Stable version with logging and debug features
+
 ---
 
 ## Features
@@ -19,6 +21,27 @@ A full-stack, modern application for detecting and analyzing potential phishing 
 - **PDF & CSV Report Generation**: Download detailed analysis reports for archiving or sharing.
 - **Modern React Frontend**: Clean, responsive UI for uploading, viewing, and downloading results.
 - **Docker Support**: Easy deployment with Docker Compose.
+- **Debug Features**: 
+  - View raw analysis data in JSON format
+  - Access application logs through UI
+  - Monitor real-time analysis progress
+- **Comprehensive Logging**: 
+  - Browser console logging
+  - UI-based log viewer
+  - Detailed operation tracking
+
+---
+
+## Version History
+
+### v1.0.0 (Current)
+- Added comprehensive logging system
+- Implemented debug features in UI
+- Enhanced email analysis capabilities
+- Improved UI components
+- Removed unused files and directories
+- Added Docker support
+- Implemented PDF and CSV report generation
 
 ---
 
@@ -29,7 +52,7 @@ email-phishing-app/
 ├── frontend/          # React frontend
 │   ├── src/
 │   │   ├── components/    # UI components (UploadForm, ResultDisplay, etc.)
-│   │   ├── services/      # API and auth services
+│   │   ├── services/      # API, auth, and logging services
 │   │   ├── App.js
 │   │   └── index.js
 │   └── package.json
@@ -37,9 +60,7 @@ email-phishing-app/
 └── backend/           # Flask backend
     ├── app.py
     ├── requirements.txt
-    ├── auth/           # Auth endpoints
     ├── uploads/        # Upload endpoints
-    ├── models/         # (Optional) DB models
     ├── analysis/       # Email parsing and analysis
     └── utils/          # Threat intelligence, report generation, etc.
 ```
@@ -55,6 +76,7 @@ email-phishing-app/
 git clone <repository-url>
 cd email-phishing-app
 ```
+
 2. **Set up the backend:**
 ```bash
 cd backend
@@ -62,11 +84,13 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
+
 3. **Set up the frontend:**
 ```bash
 cd ../frontend
 npm install
 ```
+
 4. **Create a `.env` file in the backend directory:**
 ```
 FLASK_APP=app.py
@@ -75,6 +99,7 @@ JWT_SECRET_KEY=your_jwt_secret_key_here
 VT_API_KEY=your_virustotal_api_key_here
 ABUSEIPDB_API_KEY=your_abuseipdb_api_key_here
 ```
+
 5. **Run the applications:**
    - Backend: `python app.py` (in backend directory)
    - Frontend: `npm start` (in frontend directory)
@@ -86,6 +111,34 @@ ABUSEIPDB_API_KEY=your_abuseipdb_api_key_here
 ```bash
 docker-compose up --build
 ```
+
+---
+
+## Debug Features
+
+### JSON Debug View
+- Click "Show Debug JSON" button to view raw analysis data
+- Useful for development and troubleshooting
+- Shows complete analysis results in JSON format
+
+### Log Viewer
+- Access through "View Logs" button in the UI
+- Displays application logs in a table format
+- Features:
+  - Timestamp
+  - Log level (color-coded)
+  - Message
+  - Additional data
+- Options to:
+  - Clear logs
+  - Close viewer
+  - Scroll through history
+
+### Browser Console
+- Press F12 to open browser developer tools
+- View real-time logs in the Console tab
+- Color-coded by log level
+- Useful for development and debugging
 
 ---
 
