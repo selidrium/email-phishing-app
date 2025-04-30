@@ -117,7 +117,7 @@ def parse_email(eml_content):
     for keyword in phishing_keywords:
         if re.search(keyword, plain_text, re.IGNORECASE) or re.search(keyword, html_text, re.IGNORECASE):
             suspicious_language_patterns.append(keyword)
-
+    
     # Extract server hops from Received headers
     server_hops = []
     print("Extracting server hops and IP addresses...")
