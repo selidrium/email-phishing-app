@@ -8,25 +8,42 @@ import ResultDisplay from './components/ResultDisplay';
 import { AuthProvider, useAuth } from './services/authService';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import EmailAnalysis from './components/EmailAnalysis';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 function NavBarButtons() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <>
       <Button color="inherit" component={Link} to="/">
         Home
       </Button>
-      <Button color="inherit" component={Link} to="/analyze">
-        Analyze Email
-      </Button>
-      <Button color="inherit" component={Link} to="/login">
-        Login
-      </Button>
-      <Button color="inherit" component={Link} to="/register">
-        Register
-      </Button>
+      {user ? (
+        <>
+          <Button color="inherit" component={Link} to="/upload">
+            Analyze Email
+          </Button>
+          <Button color="inherit" onClick={handleLogout}>
+            Logout
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button color="inherit" component={Link} to="/login">
+            Login
+          </Button>
+          <Button color="inherit" component={Link} to="/register">
+            Register
+          </Button>
+        </>
+      )}
     </>
   );
 }
@@ -59,7 +76,7 @@ function App() {
                     variant="contained"
                     color="primary"
                     component={Link}
-                    to="/analyze"
+                    to="/upload"
                   >
                     Start Analysis
                   </Button>
@@ -69,7 +86,6 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/upload" element={<UploadForm />} />
               <Route path="/result" element={<ResultDisplay />} />
-              <Route path="/analyze" element={<EmailAnalysis />} />
               <Route path="/" element={<Navigate to="/login" replace />} />
             </Routes>
           </Container>

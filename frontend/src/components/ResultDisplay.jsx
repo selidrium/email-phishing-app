@@ -1,26 +1,36 @@
 import React from 'react';
-import { Card, Button, Table, Badge, Alert } from 'react-bootstrap';
+import { Card, Button, Table, Badge, Alert, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../services/authService';
 import axios from 'axios';
+import logger from '../services/logger';
+import { useAuth } from '../services/authService';
 
 function ResultDisplay({ analysisResult, onNewUpload }) {
   // Debug: log the analysisResult prop
   console.log("ResultDisplay analysisResult:", analysisResult);
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user } = useAuth();
 
   // Add state for debug visibility
   const [showDebug, setShowDebug] = React.useState(false);
+  const [showLogs, setShowLogs] = React.useState(false);
   const [downloading, setDownloading] = React.useState(false);
   const [downloadError, setDownloadError] = React.useState('');
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  // Log when component mounts with analysis results
+  React.useEffect(() => {
+    if (analysisResult) {
+      logger.info('Analysis results displayed', {
+        riskScore: analysisResult.risk_assessment?.score,
+        riskLevel: analysisResult.risk_assessment?.level,
+        hasAttachments: analysisResult.attachments?.attachments?.length > 0,
+        userId: user?.id
+      });
+    }
+  }, [analysisResult, user]);
 
   const handleNewUpload = () => {
+    logger.info('Starting new upload from results page');
     if (onNewUpload) {
       onNewUpload();
     } else {
@@ -263,14 +273,12 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
             <thead>
               <tr>
                 <th>Pattern</th>
-                <th>Context</th>
               </tr>
             </thead>
             <tbody>
               {language.suspicious_patterns.map((pattern, index) => (
                 <tr key={index}>
-                  <td>{pattern.pattern || 'N/A'}</td>
-                  <td>{pattern.context || 'N/A'}</td>
+                  <td>{pattern.pattern}</td>
                 </tr>
               ))}
             </tbody>
@@ -304,19 +312,27 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
   const handleDownload = async (type) => {
     setDownloading(true);
     setDownloadError('');
+    const startTime = Date.now();
+
     try {
+      logger.info('Starting report download', { type });
       const token = localStorage.getItem('token');
       const filename = getBackendReportName(type);
       const url = `/uploads/download/${type}/${filename}`;
+      
       const response = await axios.post(
         url,
-        analysisResult, // send the analysis data as JSON
+        analysisResult,
         {
           responseType: 'blob',
           headers: { Authorization: `Bearer ${token}` },
           baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
         }
       );
+
+      const endTime = Date.now();
+      logger.logApiRequest('POST', url, 200, endTime - startTime);
+
       // Create a blob and trigger download
       const blob = new Blob([response.data], { type: type === 'pdf' ? 'application/pdf' : 'text/csv' });
       const link = document.createElement('a');
@@ -325,8 +341,18 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      logger.info('Report download completed', { 
+        type,
+        filename: link.download,
+        size: blob.size
+      });
     } catch (err) {
       setDownloadError('Failed to download report.');
+      logger.logError(err, {
+        type,
+        filename: getBackendReportName(type)
+      });
     }
     setDownloading(false);
   };
@@ -338,9 +364,6 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
           <Card.Body>
             <div className="d-flex justify-content-between align-items-center mb-4">
               <Card.Title>Analysis Results</Card.Title>
-              <Button variant="outline-danger" onClick={handleLogout}>
-                Logout
-              </Button>
             </div>
             <div className="text-center">
               <p>No analysis results to display.</p>
@@ -362,9 +385,6 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
           <Card.Body>
             <div className="d-flex justify-content-between align-items-center mb-4">
               <Card.Title>Analysis Results</Card.Title>
-              <Button variant="outline-danger" onClick={handleLogout}>
-                Logout
-              </Button>
             </div>
             <Alert variant="warning">
               <p>Incomplete analysis results. Please try uploading the file again.</p>
@@ -382,14 +402,77 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
 
   return (
     <div className="container py-4">
-      <Button
-        variant={showDebug ? "warning" : "outline-warning"}
-        size="sm"
-        className="mb-2"
-        onClick={() => setShowDebug((prev) => !prev)}
-      >
-        {showDebug ? "Hide Debug JSON" : "Show Debug JSON"}
-      </Button>
+      <div className="d-flex gap-2 mb-2">
+        <Button
+          variant={showDebug ? "warning" : "outline-warning"}
+          size="sm"
+          onClick={() => setShowDebug((prev) => !prev)}
+        >
+          {showDebug ? "Hide Debug JSON" : "Show Debug JSON"}
+        </Button>
+        <Button
+          variant="outline-info"
+          size="sm"
+          onClick={() => setShowLogs(true)}
+        >
+          View Logs
+        </Button>
+      </div>
+
+      {/* Logs Modal */}
+      <Modal show={showLogs} onHide={() => setShowLogs(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Application Logs</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            <Table striped bordered hover>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Level</th>
+                  <th>Message</th>
+                  <th>Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logger.getLogs().map((log, index) => (
+                  <tr key={index}>
+                    <td>{new Date(log.timestamp).toLocaleTimeString()}</td>
+                    <td>
+                      <Badge bg={
+                        log.level === 'error' ? 'danger' :
+                        log.level === 'warn' ? 'warning' :
+                        log.level === 'info' ? 'info' : 'secondary'
+                      }>
+                        {log.level}
+                      </Badge>
+                    </td>
+                    <td>{log.message}</td>
+                    <td>
+                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                        {JSON.stringify(log.data, null, 2)}
+                      </pre>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowLogs(false)}>
+            Close
+          </Button>
+          <Button variant="danger" onClick={() => {
+            logger.clearLogs();
+            setShowLogs(false);
+          }}>
+            Clear Logs
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       {showDebug && (
         <pre style={{ background: '#fff3cd', color: '#856404', padding: '1em', borderRadius: '6px', fontSize: '0.95rem', marginBottom: '1em', whiteSpace: 'pre-wrap' }}>
           {JSON.stringify(analysisResult, null, 2)}
@@ -403,9 +486,6 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
       )}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Analysis Results</h2>
-        <Button variant="outline-danger" onClick={handleLogout}>
-          Logout
-        </Button>
       </div>
 
       {/* Basic Information */}

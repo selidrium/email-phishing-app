@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Card, Form, Button, Alert, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../services/authService';
 import { uploadFile } from '../services/uploadService';
 import ResultDisplay from './ResultDisplay';
+import logger from '../services/logger';
+import { useAuth } from '../services/authService';
 
 function UploadForm() {
   const [file, setFile] = useState(null);
@@ -11,16 +12,25 @@ function UploadForm() {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user } = useAuth();
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile && selectedFile.name.endsWith('.eml')) {
       setFile(selectedFile);
       setError('');
+      logger.info('File selected', { 
+        filename: selectedFile.name,
+        size: selectedFile.size,
+        type: selectedFile.type
+      });
     } else {
       setFile(null);
       setError('Please select a valid .eml file');
+      logger.warn('Invalid file selected', { 
+        filename: selectedFile?.name,
+        type: selectedFile?.type
+      });
     }
   };
 
@@ -28,6 +38,7 @@ function UploadForm() {
     e.preventDefault();
     if (!file) {
       setError('Please select a file');
+      logger.warn('Submit attempted without file');
       return;
     }
 
@@ -35,8 +46,23 @@ function UploadForm() {
     setError('');
 
     try {
+      logger.info('Starting file upload', { 
+        filename: file.name,
+        userId: user?.id
+      });
+
+      const startTime = Date.now();
       const result = await uploadFile(file);
+      const endTime = Date.now();
+
+      logger.logApiRequest('POST', '/uploads/upload', 200, endTime - startTime);
+
       if (result.success) {
+        logger.info('File upload successful', {
+          filename: file.name,
+          analysisId: result.data.analysis?.id
+        });
+
         // Ensure we have the correct data structure
         const analysisData = {
           ...result.data.analysis,
@@ -79,20 +105,24 @@ function UploadForm() {
         setAnalysis(analysisData);
       } else {
         setError(result.error);
+        logger.error('File upload failed', {
+          filename: file.name,
+          error: result.error
+        });
       }
     } catch (error) {
       setError('Failed to upload file');
+      logger.logError(error, {
+        filename: file.name,
+        userId: user?.id
+      });
     }
 
     setLoading(false);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   const handleNewUpload = () => {
+    logger.info('Starting new upload');
     setAnalysis(null);
     setFile(null);
     setError('');
@@ -108,9 +138,6 @@ function UploadForm() {
         <Card.Body>
           <div className="d-flex justify-content-between align-items-center mb-4">
             <Card.Title>Email Analysis</Card.Title>
-            <Button variant="outline-danger" onClick={handleLogout}>
-              Logout
-            </Button>
           </div>
           {error && <Alert variant="danger">{error}</Alert>}
           <Form onSubmit={handleSubmit}>

