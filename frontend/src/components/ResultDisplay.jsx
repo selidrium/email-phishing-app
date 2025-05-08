@@ -273,12 +273,14 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
             <thead>
               <tr>
                 <th>Pattern</th>
+                <th>Context</th>
               </tr>
             </thead>
             <tbody>
               {language.suspicious_patterns.map((pattern, index) => (
                 <tr key={index}>
-                  <td>{pattern.pattern}</td>
+                  <td>{typeof pattern === 'object' ? pattern.pattern : pattern}</td>
+                  <td>{typeof pattern === 'object' ? pattern.context : 'N/A'}</td>
                 </tr>
               ))}
             </tbody>
@@ -590,7 +592,21 @@ function ResultDisplay({ analysisResult, onNewUpload }) {
       {renderSuspiciousElements({ suspicious_elements: (analysisResult.html_content?.suspicious_elements || []).map(el => ({ type: el, content: 'N/A' })) })}
 
       {/* Suspicious Language Patterns */}
-      {renderSuspiciousPatterns({ suspicious_patterns: (analysisResult.language?.suspicious_patterns || []).map(pat => ({ pattern: pat, context: 'N/A' })), language: analysisResult.language?.language || 'unknown' })}
+      {renderSuspiciousPatterns({ 
+        suspicious_patterns: (analysisResult.language?.suspicious_patterns || []).map(pat => {
+          if (typeof pat === 'string') {
+            return { pattern: pat, context: 'N/A' };
+          }
+          if (pat && typeof pat === 'object') {
+            return {
+              pattern: pat.pattern || JSON.stringify(pat),
+              context: pat.context || 'N/A'
+            };
+          }
+          return { pattern: 'Invalid pattern', context: 'N/A' };
+        }), 
+        language: analysisResult.language?.language || 'unknown' 
+      })}
 
       {/* Download Buttons */}
       <div className="text-center mt-4">
