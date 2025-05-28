@@ -97,13 +97,21 @@ cd ../frontend
 npm install
 ```
 
-4. **Create a `.env` file in the backend directory:**
-```
+4. **Create a `.env` file in the root directory:**
+```env
+# Flask Configuration
 FLASK_APP=app.py
 FLASK_ENV=development
+
+# Security
 JWT_SECRET_KEY=your_jwt_secret_key_here
+
+# API Keys
 VT_API_KEY=your_virustotal_api_key_here
 ABUSEIPDB_API_KEY=your_abuseipdb_api_key_here
+
+# Frontend Configuration
+REACT_APP_API_URL=http://localhost:5000
 ```
 
 5. **Run the applications:**
@@ -112,7 +120,7 @@ ABUSEIPDB_API_KEY=your_abuseipdb_api_key_here
 
 ### Docker Deployment
 
-1. **Create a `.env` file in the root or backend directory** (see above).
+1. **Create a `.env` file in the root directory** (see above).
 2. **Build and run with Docker Compose:**
 ```bash
 docker-compose up --build
