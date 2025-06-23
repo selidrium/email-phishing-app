@@ -65,7 +65,7 @@ A comprehensive, production-ready Micro SaaS application for phishing email dete
 ### 1. Clone and Setup
 ```bash
 git clone <repository-url>
-cd phishing_app_env_ready
+cd fresh_phishing_app
 ```
 
 ### 2. Configure Environment
@@ -95,6 +95,58 @@ docker-compose up --build
 - **Frontend**: http://localhost:3000
 - **API Documentation**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
+
+## 🛠️ Development Setup
+
+### **Option 1: Docker (Recommended)**
+This is the easiest and most reliable method - it handles all dependencies automatically:
+```bash
+docker-compose up --build
+```
+
+### **Option 2: Local Development**
+If you prefer to develop locally, follow these steps carefully:
+
+#### **Backend Setup**
+```bash
+# Create and activate virtual environment
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Initialize database
+python backend/init_db.py
+
+# Start backend server
+cd backend && uvicorn main:app --reload
+```
+
+#### **Frontend Setup**
+```bash
+# In a new terminal, navigate to frontend directory
+cd frontend
+
+# Install Node.js dependencies
+npm install
+
+# Start development server
+npm start
+```
+
+#### **VS Code Configuration (if using VS Code)**
+If you encounter import errors in your editor:
+1. Open VS Code in the project root
+2. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
+3. Type "Python: Select Interpreter"
+4. Choose the interpreter from your virtual environment (`venv/Scripts/python.exe` on Windows)
+5. Restart VS Code if needed
+
+**Note**: The Docker approach is recommended as it ensures consistent environments and avoids import/dependency issues.
 
 ## 📦 Usage
 
@@ -150,7 +202,7 @@ The application performs comprehensive email analysis:
 ## 📁 Project Structure
 
 ```
-phishing_app_env_ready/
+fresh_phishing_app/
 ├── backend/
 │   ├── api/
 │   │   └── routes.py              # API endpoints
@@ -291,10 +343,14 @@ docker-compose logs -f backend
 
 ### **Common Issues**
 
-1. **Import Errors**
-   - Ensure all dependencies are installed
-   - Check Python version (3.11+ recommended)
-   - Verify import paths in Docker environment (PYTHONPATH is set in Dockerfile)
+1. **Import Errors (fastapi, aiohttp, etc.)**
+   - **Docker users**: These errors are normal in your local editor - the code runs fine in Docker containers
+   - **Local development users**: 
+     - Ensure virtual environment is activated: `venv\Scripts\activate` (Windows) or `source venv/bin/activate` (macOS/Linux)
+     - Reinstall dependencies: `pip install -r requirements.txt`
+     - Check Python version: `python --version` (3.11+ recommended)
+     - For VS Code: Select the correct Python interpreter from your virtual environment
+   - **VS Code users**: The import errors in the editor don't affect Docker execution - they're just editor warnings
 
 2. **Database Issues**
    - Run `python backend/init_db.py` to initialize database
@@ -305,17 +361,28 @@ docker-compose logs -f backend
    - Use `docker-compose up --build` for fresh builds
    - Check port availability (3000, 8000)
    - Verify Docker and Docker Compose versions
+   - Clear Docker cache if needed: `docker system prune -a`
 
 4. **API Issues**
    - Check CORS configuration
    - Verify JWT token validity
    - Check request/response logs
 
-### **Performance Issues**
-- Monitor container resource usage
-- Check async operation logs
-- Verify VirusTotal API rate limits
-- Review database query performance
+### **Environment-Specific Solutions**
+
+#### **Windows Users**
+- Use PowerShell or Command Prompt (not Git Bash for virtual environment activation)
+- Virtual environment activation: `venv\Scripts\activate`
+- Python path: `venv\Scripts\python.exe`
+
+#### **macOS/Linux Users**
+- Virtual environment activation: `source venv/bin/activate`
+- Python path: `venv/bin/python`
+
+#### **VS Code Users**
+- Import errors in editor are normal when using Docker
+- To resolve editor warnings: Select Python interpreter from virtual environment
+- The application will work correctly despite editor warnings
 
 ## 📈 Production Deployment
 
