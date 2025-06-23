@@ -114,19 +114,32 @@ class UploadService:
             # Extract sender IP from forensics analysis
             sender_ip = forensics_analysis.get('sender_ip', 'N/A')
             
-            # Get VirusTotal IP reputation first
+            # Run phishing detection FIRST to get attachment details
+            phishing_start = asyncio.get_event_loop().time()
+            phishing_analysis = await loop.run_in_executor(
+                None, self.phishing_detector.analyze_eml, contents, None
+            )
+            phishing_time = asyncio.get_event_loop().time() - phishing_start
+            logger.info("Initial phishing detection completed", duration=phishing_time)
+            
+            # Get VirusTotal analysis WITH attachment details
             vt_start = asyncio.get_event_loop().time()
-            vt_results = await self._get_virustotal_results(file_hashes, sender_ip)
+            vt_results = await self._get_virustotal_results(file_hashes, sender_ip, phishing_analysis)
             vt_time = asyncio.get_event_loop().time() - vt_start
             logger.info("VirusTotal analysis completed", duration=vt_time, sender_ip=sender_ip)
             
-            # Run phishing detection in thread pool to avoid blocking
-            phishing_start = asyncio.get_event_loop().time()
+            # Update phishing analysis with VirusTotal IP reputation results
+            phishing_update_start = asyncio.get_event_loop().time()
             phishing_analysis = await loop.run_in_executor(
                 None, self.phishing_detector.analyze_eml, contents, vt_results.get('ip_reputation')
             )
-            phishing_time = asyncio.get_event_loop().time() - phishing_start
-            logger.info("Phishing detection completed", duration=phishing_time)
+            phishing_update_time = asyncio.get_event_loop().time() - phishing_update_start
+            logger.info("Phishing analysis updated with VirusTotal IP data", duration=phishing_update_time)
+            
+            # Validate attachment analysis pipeline
+            pipeline_valid = self._validate_attachment_pipeline(phishing_analysis, vt_results)
+            if not pipeline_valid:
+                logger.warning("Attachment analysis pipeline validation failed - some attachments may not have been analyzed")
             
             # Create unified report
             report_start = asyncio.get_event_loop().time()
@@ -147,11 +160,13 @@ class UploadService:
                 "Comprehensive analysis completed",
                 total_duration=total_time,
                 forensics_duration=forensics_time,
+                initial_phishing_duration=phishing_time,
                 virustotal_duration=vt_time,
-                phishing_duration=phishing_time,
+                phishing_update_duration=phishing_update_time,
                 report_duration=report_time,
                 overall_risk_score=overall_risk_score,
-                is_phishing=unified_report['risk_scoring']['is_phishing']
+                is_phishing=unified_report['risk_scoring']['is_phishing'],
+                attachments_analyzed=len(vt_results.get('attachments', []))
             )
             
             return {
@@ -160,15 +175,16 @@ class UploadService:
                 'performance': {
                     'total_time': total_time,
                     'forensics_time': forensics_time,
+                    'initial_phishing_time': phishing_time,
                     'virustotal_time': vt_time,
-                    'phishing_time': phishing_time,
+                    'phishing_update_time': phishing_update_time,
                     'report_time': report_time
                 }
             }
             
         except Exception as e:
             logger.error(f"Service error in scan_file: {type(e).__name__}")
-            raise handle_service_error(e, "scan_file", {"file_name": file.filename})
+            raise handle_service_error(e, "scan_file", {"context": "raw bytes input"})
 
     async def _get_virustotal_results(self, file_hashes: Dict[str, str], sender_ip: str, phishing_analysis: Dict[str, Any] = None) -> Dict[str, Any]:
         """Get comprehensive VirusTotal analysis results"""
@@ -197,12 +213,23 @@ class UploadService:
         attachment_details = []
         if phishing_analysis and 'attachment_analysis' in phishing_analysis:
             attachment_details = phishing_analysis['attachment_analysis'].get('attachment_details', [])
-            logger.info(f"Found {len(attachment_details)} attachments in phishing analysis")
+            logger.info(f"Found {len(attachment_details)} attachments in phishing analysis for VirusTotal scanning")
+            
+            # Log attachment details for debugging
+            for i, attachment in enumerate(attachment_details):
+                logger.debug(f"Attachment {i+1}: {attachment.get('filename', 'unknown')} - Hash: {attachment.get('hash_sha256', 'N/A')[:16] if attachment.get('hash_sha256') else 'N/A'}")
+        else:
+            logger.info("No phishing analysis available or no attachments found")
         
-        # Analyze all attachments
+        # Analyze all attachments with VirusTotal
         if attachment_details:
             logger.info(f"Analyzing {len(attachment_details)} attachments with VirusTotal")
             vt_results['attachments'] = await virustotal_service.analyze_attachments(attachment_details)
+            
+            # Log VirusTotal results summary
+            malicious_count = len([a for a in vt_results['attachments'] if a.get('virustotal', {}).get('verdict') == 'malicious'])
+            suspicious_count = len([a for a in vt_results['attachments'] if a.get('virustotal', {}).get('verdict') == 'suspicious'])
+            logger.info(f"VirusTotal attachment analysis complete: {malicious_count} malicious, {suspicious_count} suspicious out of {len(attachment_details)} attachments")
         else:
             logger.info("No attachments found for VirusTotal analysis")
             vt_results['attachments'] = []
@@ -419,6 +446,40 @@ class UploadService:
                 hop_copy['ip_addresses'].append(sender_ip)
             enhanced_path.append(hop_copy)
         return enhanced_path
+
+    def _validate_attachment_pipeline(self, phishing_analysis: Dict[str, Any], vt_results: Dict[str, Any]) -> bool:
+        """Validate that attachment analysis pipeline is working correctly"""
+        try:
+            # Check if phishing analysis contains attachment details
+            attachment_analysis = phishing_analysis.get('attachment_analysis', {})
+            attachment_details = attachment_analysis.get('attachment_details', [])
+            
+            # Check if VirusTotal results contain attachment analysis
+            vt_attachments = vt_results.get('attachments', [])
+            
+            # Log validation results
+            logger.info(f"Attachment pipeline validation:")
+            logger.info(f"  - Phishing analysis attachments: {len(attachment_details)}")
+            logger.info(f"  - VirusTotal analyzed attachments: {len(vt_attachments)}")
+            
+            # Check if all attachments from phishing analysis were processed by VirusTotal
+            if attachment_details:
+                processed_count = len(vt_attachments)
+                expected_count = len(attachment_details)
+                
+                if processed_count == expected_count:
+                    logger.info(f"✅ All {expected_count} attachments were processed by VirusTotal")
+                    return True
+                else:
+                    logger.warning(f"⚠️ Only {processed_count}/{expected_count} attachments were processed by VirusTotal")
+                    return False
+            else:
+                logger.info("✅ No attachments found - pipeline validation passed")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error validating attachment pipeline: {type(e).__name__}: {str(e)}")
+            return False
 
 # Global instance
 upload_service = UploadService() 

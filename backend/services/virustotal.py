@@ -243,6 +243,21 @@ class VirusTotalService:
                         'file_type': attributes.get('type_description', 'Unknown'),
                         'file_size': attributes.get('size', 0)
                     }
+                elif response.status == 404:
+                    # File hash not found in VirusTotal database
+                    logger.info(f"File hash not found in VirusTotal database: {file_hash[:16]}...")
+                    return {
+                        'available': False,
+                        'verdict': 'unknown',
+                        'score': 0,
+                        'link': f"https://www.virustotal.com/gui/file/{file_hash}/detection",
+                        'malicious_count': 0,
+                        'suspicious_count': 0,
+                        'total_count': 0,
+                        'file_type': 'Unknown',
+                        'file_size': 0,
+                        'error': 'File hash not found in VirusTotal database'
+                    }
                 else:
                     raise VirusTotalError(f"VirusTotal API error: {response.status}", vt_operation="file_hash")
                     
@@ -255,14 +270,38 @@ class VirusTotalService:
         if not self.api_key:
             raise VirusTotalError("VirusTotal API key not configured", vt_operation="attachment_analysis")
         
+        if not attachment_details:
+            logger.info("No attachment details provided for VirusTotal analysis")
+            return []
+        
+        logger.info(f"Starting VirusTotal analysis for {len(attachment_details)} attachments")
         results = []
         
-        for attachment in attachment_details:
+        for i, attachment in enumerate(attachment_details, 1):
             try:
+                filename = attachment.get('filename', 'unknown')
+                logger.info(f"Processing attachment {i}/{len(attachment_details)}: {filename}")
+                
+                # Validate attachment data
+                if not isinstance(attachment, dict):
+                    logger.warning(f"Invalid attachment data format for attachment {i}: {type(attachment)}")
+                    results.append({
+                        'filename': filename,
+                        'content_type': attachment.get('content_type', 'unknown'),
+                        'size': attachment.get('size', 0),
+                        'virustotal': {
+                            'available': False,
+                            'error': 'Invalid attachment data format',
+                            'verdict': 'unknown',
+                            'score': 0
+                        }
+                    })
+                    continue
+                
                 # Get SHA256 hash
                 sha256_hash = attachment.get('hash_sha256')
                 if not sha256_hash:
-                    logger.warning(f"No SHA256 hash available for attachment {attachment.get('filename', 'unknown')}")
+                    logger.warning(f"No SHA256 hash available for attachment {filename}")
                     results.append({
                         **attachment,
                         'virustotal': {
@@ -274,7 +313,22 @@ class VirusTotalService:
                     })
                     continue
                 
+                # Validate hash format
+                if not isinstance(sha256_hash, str) or len(sha256_hash) != 64:
+                    logger.warning(f"Invalid SHA256 hash format for attachment {filename}: {sha256_hash}")
+                    results.append({
+                        **attachment,
+                        'virustotal': {
+                            'available': False,
+                            'error': 'Invalid SHA256 hash format',
+                            'verdict': 'unknown',
+                            'score': 0
+                        }
+                    })
+                    continue
+                
                 # Check with VirusTotal
+                logger.debug(f"Checking VirusTotal for attachment {filename} with hash: {sha256_hash[:16]}...")
                 vt_result = await self.check_file_hash(sha256_hash)
                 
                 results.append({
@@ -282,12 +336,29 @@ class VirusTotalService:
                     'virustotal': vt_result
                 })
                 
+                logger.info(f"VirusTotal analysis completed for {filename}: {vt_result.get('verdict', 'unknown')}")
+                
                 # Rate limiting - be respectful to VirusTotal API
                 await asyncio.sleep(0.1)
                 
             except Exception as e:
-                logger.error(f"Service error in analyze_attachment: {type(e).__name__}")
-                raise handle_service_error(e, "analyze_attachment", {"filename": attachment.get('filename', 'unknown')})
+                logger.error(f"Error analyzing attachment {i} ({attachment.get('filename', 'unknown')}): {type(e).__name__}: {str(e)}")
+                results.append({
+                    **attachment,
+                    'virustotal': {
+                        'available': False,
+                        'error': f'Analysis failed: {type(e).__name__}',
+                        'verdict': 'unknown',
+                        'score': 0
+                    }
+                })
+        
+        # Log summary
+        successful_analyses = len([r for r in results if r.get('virustotal', {}).get('available', False)])
+        malicious_count = len([r for r in results if r.get('virustotal', {}).get('verdict') == 'malicious'])
+        suspicious_count = len([r for r in results if r.get('virustotal', {}).get('verdict') == 'suspicious'])
+        
+        logger.info(f"VirusTotal attachment analysis summary: {successful_analyses}/{len(attachment_details)} successful, {malicious_count} malicious, {suspicious_count} suspicious")
         
         return results
 
