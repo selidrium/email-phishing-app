@@ -11,7 +11,7 @@ import uvicorn
 import os
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import psutil
 import platform
 from backend.utils.monitoring import monitoring_service
@@ -20,11 +20,12 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response
-from backend.utils.database import init_db
+from backend.utils.database import initialize_database
 from backend.utils.monitoring import setup_monitoring
 from backend.services.virustotal import virustotal_service
 from backend.utils.exceptions import PhishingAppException, create_error_response
 from backend.utils.logging_config import setup_structured_logging, get_logger, generate_correlation_id, set_correlation_id
+from backend.utils.security import validate_secret_key
 
 # Setup structured logging
 setup_structured_logging()
@@ -45,7 +46,7 @@ async def lifespan(app: FastAPI):
     
     # Initialize database
     try:
-        await init_db()
+        await initialize_database()
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Service error in database_initialization: {type(e).__name__}")
@@ -104,6 +105,10 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Get rate limit configuration from environment
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+RATE_LIMIT_AUTH_PER_MINUTE = int(os.getenv("RATE_LIMIT_AUTH_PER_MINUTE", "5"))
+
 # Correlation ID middleware
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
@@ -127,12 +132,24 @@ async def correlation_id_middleware(request: Request, call_next):
 def get_config():
     secret_key = os.getenv("SECRET_KEY")
     if not secret_key:
-        raise ValueError("SECRET_KEY environment variable is required")
+        # Use a default for development, but warn
+        secret_key = "development_secret_key_change_in_production_environment"
+        logger.warning("SECRET_KEY not set, using development default. Change this in production!")
+    
+    # Only validate if we have a real secret key (not the default)
+    if secret_key != "development_secret_key_change_in_production_environment":
+        try:
+            if not validate_secret_key(secret_key):
+                logger.warning("SECRET_KEY does not meet security requirements. Using anyway but please fix.")
+        except Exception as e:
+            logger.warning(f"Secret key validation failed: {e}. Using anyway.")
     
     return [
         ("authjwt_secret_key", secret_key),
         ("authjwt_algorithm", os.getenv("ALGORITHM", "HS256")),
         ("authjwt_access_token_expires", int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30)) * 60),
+        ("authjwt_token_location", ["headers"]),
+        ("authjwt_cookie_csrf_protect", False),
     ]
 
 @app.exception_handler(AuthJWTException)
@@ -196,7 +213,7 @@ async def log_requests(request: Request, call_next):
     
     # Add custom headers
     response.headers["X-Process-Time"] = str(process_time)
-    response.headers["X-Server-Time"] = datetime.utcnow().isoformat()
+    response.headers["X-Server-Time"] = datetime.now(timezone.utc).isoformat()
     
     return response
 
@@ -211,7 +228,7 @@ async def health_check():
         # Basic system info
         system_info = {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0.0",
             "platform": platform.platform(),
             "python_version": platform.python_version(),
@@ -251,7 +268,7 @@ async def get_metrics():
     """Basic metrics endpoint for monitoring"""
     try:
         metrics = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "system": {
                 "cpu_percent": psutil.cpu_percent(interval=1),
                 "memory_percent": psutil.virtual_memory().percent,
@@ -370,6 +387,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content=error_response
     )
 
+# Include router with rate limiting applied
 app.include_router(router)
 
 if __name__ == "__main__":

@@ -1,7 +1,47 @@
+# Use Node.js 20 Alpine for smaller image size
 FROM node:20-alpine
+
+# Set working directory
 WORKDIR /app
+
+# Install system dependencies for better compatibility
+RUN apk add --no-cache libc6-compat tini wget
+
+# Copy package files first for better caching
 COPY frontend/package*.json ./
-RUN npm install --silent
+
+# Install dependencies with clean cache
+RUN npm ci --silent && npm cache clean --force
+
+# Copy source code
 COPY frontend/ ./
+
+# Create non-root user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# Expose port
 EXPOSE 3000
+
+# Set environment variables for React development server
+ENV HOST=0.0.0.0
+ENV PORT=3000
+ENV WDS_SOCKET_HOST=0.0.0.0
+ENV WDS_SOCKET_PORT=3000
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+ENV FAST_REFRESH=true
+ENV GENERATE_SOURCEMAP=false
+ENV NODE_ENV=development
+
+# Health check for container readiness
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://0.0.0.0:3000/ || exit 1
+
+# Use tini for proper signal handling (prevents zombie processes)
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start the development server with proper signal handling
 CMD ["npm", "start"]

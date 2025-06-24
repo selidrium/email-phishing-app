@@ -2,13 +2,14 @@ import os
 import json
 import logging
 import datetime
+from datetime import timezone
 import uuid
 import re
 import requests
 import io
 import csv
 from typing import Optional
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, validator
 from sqlalchemy.orm import Session
@@ -19,6 +20,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 from email_validator import validate_email, EmailNotValidError
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from backend.models.sqlalchemy_models import User, Email
 from backend.services.auth import authenticate_user, hash_password, create_access_token
@@ -35,6 +38,9 @@ from backend.utils.exceptions import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Rate limiting configuration
+RATE_LIMIT_AUTH_PER_MINUTE = int(os.getenv("RATE_LIMIT_AUTH_PER_MINUTE", "5"))
 
 class RegisterRequest(BaseModel):
     username: str
@@ -53,12 +59,22 @@ class RegisterRequest(BaseModel):
     def validate_username(cls, v):
         if len(v) < 3:
             raise ValueError('Username must be at least 3 characters')
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
         return v
     
     @validator('password')
     def validate_password(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not re.search(r'\d', v):
+            raise ValueError('Password must contain at least one number')
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)')
         return v
 
     class Config:
@@ -85,14 +101,22 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db)):
         if existing_user:
             logger.warning(f"Registration failed - user already exists: {request.username}")
             raise ValidationError("Username or email already exists")
+        
+        # Check if this is the first user (make them admin)
+        is_first_user = db.query(User).count() == 0
             
         # Create user
         hashed = hash_password(request.password)
-        user = User(username=request.username, email=request.email, hashed_password=hashed)
+        user = User(
+            username=request.username, 
+            email=request.email, 
+            hashed_password=hashed,
+            is_admin=is_first_user  # First user becomes admin
+        )
         db.add(user)
         db.commit()
         
-        logger.info(f"User registered successfully: {request.username}")
+        logger.info(f"User registered successfully: {request.username} (admin: {is_first_user})")
         return {"msg": "Registration successful"}
         
     except (ValidationError, DatabaseError):
@@ -296,7 +320,7 @@ async def upload(file: UploadFile = File(...), db: Session = Depends(get_db), cu
         # Extract the unified report
         unified_report = scan_result.get('report', {})
         
-        upload_time = datetime.datetime.utcnow().isoformat()
+        upload_time = datetime.datetime.now(timezone.utc).isoformat()
         
         # Extract risk scoring for database storage
         risk_scoring = unified_report.get('risk_scoring', {})
@@ -310,7 +334,7 @@ async def upload(file: UploadFile = File(...), db: Session = Depends(get_db), cu
         
         email = Email(
             filename=file.filename,
-            uploaded_at=datetime.datetime.utcnow(),
+            uploaded_at=datetime.datetime.now(timezone.utc),
             phishing_score=risk_scoring.get('overall_risk_score', 0),  # Use overall risk score
             is_phishing=risk_scoring.get('is_phishing', False),  # Use correct is_phishing flag
             analysis_json=analysis_json,
@@ -731,40 +755,192 @@ async def export_pdf_report(email_id: int, current_user=Depends(get_current_user
 
 @router.get("/dashboard")
 async def get_dashboard(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    """Get user's analysis dashboard"""
+    """Get user's analysis history with comprehensive error handling"""
     try:
-        # Get user's emails
-        emails = db.query(Email).filter(Email.user_id == current_user["id"]).order_by(Email.uploaded_at.desc()).all()
+        logger.info(f"Dashboard request for user: {current_user['username']}")
+        
+        # Get user's emails with analysis results
+        emails = db.query(Email).filter(Email.user_id == current_user['id']).order_by(Email.uploaded_at.desc()).all()
         
         dashboard_data = []
         for email in emails:
-            try:
-                analysis_data = json.loads(email.analysis_json)
-                unified_report = analysis_data.get("unified_report", {})
-                risk_scoring = unified_report.get('risk_scoring', {})
-                
-                dashboard_data.append({
-                    "id": email.id,
-                    "filename": email.filename,
-                    "uploaded_at": email.uploaded_at.isoformat(),
-                    "phishing_score": risk_scoring.get('overall_risk_score', 0),
-                    "is_phishing": risk_scoring.get('is_phishing', False),
-                    "risk_level": risk_scoring.get('risk_level', 'unknown')
-                })
-            except json.JSONDecodeError:
-                # Handle legacy data format
-                dashboard_data.append({
-                    "id": email.id,
-                    "filename": email.filename,
-                    "uploaded_at": email.uploaded_at.isoformat(),
-                    "phishing_score": email.phishing_score or 0,
-                    "is_phishing": email.is_phishing or False,
-                    "risk_level": "unknown"
-                })
+            analysis_data = json.loads(email.analysis_json) if email.analysis_json else {}
+            dashboard_data.append({
+                "id": email.id,
+                "filename": email.filename,
+                "uploaded_at": email.uploaded_at.isoformat(),
+                "phishing_score": email.phishing_score,
+                "is_phishing": email.is_phishing,
+                "from": analysis_data.get('metadata', {}).get('from', 'Unknown'),
+                "subject": analysis_data.get('metadata', {}).get('subject', 'Unknown'),
+                "risk_level": analysis_data.get('risk_scoring', {}).get('risk_level', 'unknown')
+            })
         
-        logger.info(f"Dashboard data retrieved for user {current_user['username']}: {len(dashboard_data)} emails")
+        logger.info(f"Dashboard data retrieved for user: {current_user['username']}, {len(dashboard_data)} emails")
         return {"emails": dashboard_data}
         
     except Exception as e:
-        logger.error(f"Service error in dashboard: {type(e).__name__}")
-        raise handle_service_error(e, "dashboard")
+        logger.error(f"Service error in get_dashboard: {type(e).__name__}")
+        raise handle_service_error(e, "get_dashboard")
+
+# Admin endpoints for user management
+class AdminUserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    is_admin: Optional[bool] = None
+    
+    @validator('email')
+    def validate_email_address(cls, v):
+        if v is not None:
+            try:
+                validate_email(v)
+                return v
+            except EmailNotValidError as e:
+                raise ValueError(str(e))
+        return v
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if v is not None and len(v) < 3:
+            raise ValueError('Username must be at least 3 characters')
+        if v is not None and not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username can only contain letters, numbers, underscores, and hyphens')
+        return v
+
+def is_admin(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Check if current user is admin using the is_admin field"""
+    user = db.query(User).filter(User.id == current_user["id"]).first()
+    if not user or not user.is_admin:
+        raise AuthenticationError("Admin privileges required")
+    return current_user
+
+@router.get("/admin/users")
+async def get_all_users(admin_user=Depends(is_admin), db: Session = Depends(get_db)):
+    """Get all users (admin only)"""
+    try:
+        logger.info(f"Admin user list request by: {admin_user['username']}")
+        
+        users = db.query(User).all()
+        user_list = []
+        for user in users:
+            # Count user's emails
+            email_count = db.query(Email).filter(Email.user_id == user.id).count()
+            user_list.append({
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "is_admin": user.is_admin,
+                "email_count": email_count,
+                "created_at": user.created_at.isoformat() if user.created_at else None
+            })
+        
+        logger.info(f"Admin retrieved {len(user_list)} users")
+        return {"users": user_list}
+        
+    except Exception as e:
+        logger.error(f"Service error in get_all_users: {type(e).__name__}")
+        raise handle_service_error(e, "get_all_users")
+
+@router.delete("/admin/users/{user_id}")
+async def delete_user(user_id: int, admin_user=Depends(is_admin), db: Session = Depends(get_db)):
+    """Delete a user (admin only)"""
+    try:
+        logger.info(f"Admin delete user request by: {admin_user['username']} for user_id: {user_id}")
+        
+        # Prevent admin from deleting themselves
+        if user_id == admin_user["id"]:
+            raise ValidationError("Cannot delete admin user")
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise NotFoundError("User not found")
+        
+        # Delete user's emails first
+        db.query(Email).filter(Email.user_id == user_id).delete()
+        
+        # Delete user
+        db.delete(user)
+        db.commit()
+        
+        logger.info(f"User {user.username} deleted by admin {admin_user['username']}")
+        return {"msg": f"User {user.username} deleted successfully"}
+        
+    except (ValidationError, NotFoundError):
+        raise
+    except Exception as e:
+        logger.error(f"Service error in delete_user: {type(e).__name__}")
+        raise handle_service_error(e, "delete_user")
+
+@router.put("/admin/users/{user_id}")
+async def update_user(user_id: int, user_update: AdminUserUpdate, admin_user=Depends(is_admin), db: Session = Depends(get_db)):
+    """Update a user (admin only)"""
+    try:
+        logger.info(f"Admin update user request by: {admin_user['username']} for user_id: {user_id}")
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise NotFoundError("User not found")
+        
+        # Prevent admin from demoting themselves
+        if user_id == admin_user["id"] and user_update.is_admin is False:
+            raise ValidationError("Cannot demote yourself from admin")
+        
+        # Update fields if provided
+        if user_update.username is not None:
+            # Check if username already exists
+            existing = db.query(User).filter(User.username == user_update.username, User.id != user_id).first()
+            if existing:
+                raise ValidationError("Username already exists")
+            user.username = user_update.username
+        
+        if user_update.email is not None:
+            # Check if email already exists
+            existing = db.query(User).filter(User.email == user_update.email, User.id != user_id).first()
+            if existing:
+                raise ValidationError("Email already exists")
+            user.email = user_update.email
+        
+        if user_update.is_admin is not None:
+            user.is_admin = user_update.is_admin
+            logger.info(f"Admin status changed for user {user.username}: {user_update.is_admin}")
+        
+        db.commit()
+        
+        logger.info(f"User {user.username} updated by admin {admin_user['username']}")
+        return {"msg": f"User {user.username} updated successfully"}
+        
+    except (ValidationError, NotFoundError):
+        raise
+    except Exception as e:
+        logger.error(f"Service error in update_user: {type(e).__name__}")
+        raise handle_service_error(e, "update_user")
+
+@router.get("/admin/stats")
+async def get_admin_stats(admin_user=Depends(is_admin), db: Session = Depends(get_db)):
+    """Get admin statistics (admin only)"""
+    try:
+        logger.info(f"Admin stats request by: {admin_user['username']}")
+        
+        total_users = db.query(User).count()
+        total_emails = db.query(Email).count()
+        phishing_emails = db.query(Email).filter(Email.is_phishing == True).count()
+        
+        # Get recent activity (last 7 days)
+        week_ago = datetime.datetime.now(timezone.utc) - datetime.timedelta(days=7)
+        recent_emails = db.query(Email).filter(Email.uploaded_at >= week_ago).count()
+        
+        stats = {
+            "total_users": total_users,
+            "total_emails": total_emails,
+            "phishing_emails": phishing_emails,
+            "benign_emails": total_emails - phishing_emails,
+            "recent_emails_7_days": recent_emails,
+            "phishing_rate": (phishing_emails / total_emails * 100) if total_emails > 0 else 0
+        }
+        
+        logger.info(f"Admin stats retrieved by {admin_user['username']}")
+        return stats
+        
+    except Exception as e:
+        logger.error(f"Service error in get_admin_stats: {type(e).__name__}")
+        raise handle_service_error(e, "get_admin_stats")

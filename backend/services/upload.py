@@ -7,6 +7,7 @@ from backend.utils.exceptions import (
     ValidationError, handle_service_error
 )
 from backend.utils.logging_config import get_logger
+from backend.utils.security import validate_filename, validate_email_content
 import asyncio
 import hashlib
 from typing import Dict, Any, List
@@ -43,13 +44,18 @@ class UploadService:
         return None
 
     async def validate_upload(self, file: UploadFile) -> bytes:
-        """Validate uploaded file with comprehensive error handling"""
+        """Validate uploaded file with comprehensive error handling and security checks"""
         try:
             # Check file extension
             if not file.filename:
                 raise ValidationError("No filename provided", field="filename")
-                
-            file_extension = file.filename.rsplit(".", 1)[1].lower() if "." in file.filename else ""
+            
+            # Validate and sanitize filename
+            safe_filename = validate_filename(file.filename)
+            if safe_filename != file.filename:
+                logger.warning(f"Filename sanitized: {file.filename} -> {safe_filename}")
+            
+            file_extension = safe_filename.rsplit(".", 1)[1].lower() if "." in safe_filename else ""
             if file_extension not in ALLOWED_EXTENSIONS:
                 raise ValidationError(
                     f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}", 
@@ -61,17 +67,24 @@ class UploadService:
             if len(contents) > MAX_FILE_SIZE:
                 raise FileProcessingError(
                     f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB",
-                    file_info={"filename": file.filename, "size": len(contents)}
+                    file_info={"filename": safe_filename, "size": len(contents)}
                 )
 
             if len(contents) == 0:
-                raise FileProcessingError("Empty file", file_info={"filename": file.filename})
+                raise FileProcessingError("Empty file", file_info={"filename": safe_filename})
+
+            # Validate email content for security
+            try:
+                content_str = contents.decode('utf-8', errors='ignore')
+                validate_email_content(content_str)
+            except UnicodeDecodeError:
+                raise ValidationError("Invalid file encoding", field="content")
 
             # Calculate file hashes for security and integrity
             file_hashes = self._calculate_file_hashes(contents)
             logger.info(
                 "File hashes calculated",
-                file_name=file.filename,
+                file_name=safe_filename,
                 file_size=len(contents),
                 md5_hash=file_hashes['md5'][:16] + "...",
                 sha256_hash=file_hashes['sha256'][:16] + "..."
@@ -82,7 +95,7 @@ class UploadService:
             
             logger.info(
                 "File validation successful",
-                file_name=file.filename,
+                file_name=safe_filename,
                 file_size=len(contents)
             )
             return contents
