@@ -367,6 +367,15 @@ docker-compose logs -f backend
    - Check CORS configuration
    - Verify JWT token validity
    - Check request/response logs
+  
+5. **Admin Account Issues**
+   - Only the first account is made admin, to reset this, you will need to rebuild the database.
+     - Stop all containers
+       ```docker-compose down```
+     - Delete the database directory
+       ```Remove-Item -Recurse -Force database```
+     - Start containers (database will be recreated automatically)
+       ```docker-compose up -d```
 
 ### **Environment-Specific Solutions**
 
