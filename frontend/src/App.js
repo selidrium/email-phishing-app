@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import AdminPanel from './AdminPanel';
+import { extractErrorMessage } from './utils/errorHandler';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
 
@@ -19,7 +20,9 @@ function App() {
     const [isAdmin, setIsAdmin] = useState(false);
     
     const showMessage = (msg, type = "info") => {
-        setMessage(msg);
+        // Ensure message is always a string
+        const messageString = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        setMessage(messageString);
         setMessageType(type);
         setTimeout(() => setMessage(""), 5000);
     };
@@ -34,7 +37,8 @@ function App() {
             });
             showMessage("Registration successful! You can now login.", "success");
         } catch (err) {
-            showMessage(err.response?.data?.detail || "Registration failed.", "danger");
+            const errorMessage = extractErrorMessage(err, "Registration failed.");
+            showMessage(errorMessage, "danger");
         } finally {
             setIsLoading(false);
         }
@@ -55,7 +59,8 @@ function App() {
                 await checkAdminStatus(res.data.access_token);
             }, 100);
         } catch (err) {
-            showMessage(err.response?.data?.detail || "Login failed.", "danger");
+            const errorMessage = extractErrorMessage(err, "Login failed.");
+            showMessage(errorMessage, "danger");
         } finally {
             setIsLoading(false);
         }
@@ -95,7 +100,8 @@ function App() {
             setEmailId(res.data.email_id);
             showMessage("File analyzed successfully!", "success");
         } catch (err) {
-            showMessage(err.response?.data?.detail || "Upload failed.", "danger");
+            const errorMessage = extractErrorMessage(err, "Upload failed.");
+            showMessage(errorMessage, "danger");
         } finally {
             setIsLoading(false);
         }
@@ -119,10 +125,10 @@ function App() {
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
             } else {
-                showMessage('Failed to download PDF', 'error');
+                showMessage('Failed to download PDF', 'danger');
             }
         } catch (error) {
-            showMessage('Error downloading PDF', 'error');
+            showMessage('Error downloading PDF', 'danger');
         }
     };
 
@@ -144,10 +150,10 @@ function App() {
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
             } else {
-                showMessage('Failed to download CSV', 'error');
+                showMessage('Failed to download CSV', 'danger');
             }
         } catch (error) {
-            showMessage('Error downloading CSV', 'error');
+            showMessage('Error downloading CSV', 'danger');
         }
     };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { extractErrorMessage } from './utils/errorHandler';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000";
 
@@ -19,7 +20,9 @@ export default function AdminPanel({ token }) {
   }, [token]);
 
   const showMessage = (msg) => {
-    setMessage(msg);
+    // Ensure message is always a string
+    const messageString = typeof msg === 'string' ? msg : JSON.stringify(msg);
+    setMessage(messageString);
     setTimeout(() => setMessage(""), 4000);
   };
 
@@ -30,7 +33,8 @@ export default function AdminPanel({ token }) {
       });
       setUsers(res.data.users);
     } catch (err) {
-      showMessage("Failed to load users.");
+      const errorMessage = extractErrorMessage(err, "Failed to load users.");
+      showMessage(errorMessage);
     }
   };
 
@@ -41,7 +45,8 @@ export default function AdminPanel({ token }) {
       });
       setAdminStats(res.data);
     } catch (err) {
-      showMessage("Failed to load admin stats.");
+      const errorMessage = extractErrorMessage(err, "Failed to load admin stats.");
+      showMessage(errorMessage);
     }
   };
 
@@ -54,8 +59,9 @@ export default function AdminPanel({ token }) {
       showMessage(`User "${username}" deleted.`);
       loadUsers();
       loadAdminStats();
-    } catch {
-      showMessage("Failed to delete user.");
+    } catch (err) {
+      const errorMessage = extractErrorMessage(err, "Failed to delete user.");
+      showMessage(errorMessage);
     }
   };
 
@@ -69,7 +75,8 @@ export default function AdminPanel({ token }) {
       setEditForm({ username: "", email: "", is_admin: false });
       loadUsers();
     } catch (err) {
-      showMessage(err.response?.data?.detail || "Failed to update user.");
+      const errorMessage = extractErrorMessage(err, "Failed to update user.");
+      showMessage(errorMessage);
     }
   };
 
